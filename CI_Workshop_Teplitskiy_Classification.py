@@ -8,6 +8,24 @@
 # 
 # - inspired by http://bugra.github.io/work/notes/2014-12-26/language-detector-via-scikit-learn/
 
+# <markdowncell>
+
+# #Overfitting
+# 
+# ### = Big difference between social science stats and machine learning
+# 
+# <img src=http://pingax.com/wp-content/uploads/2014/05/underfitting-overfitting.png>
+# 
+# ###Solution: Split data into training part and testing part
+# 
+# - "testing" set also called "validation set," "held-out set"
+# 
+# ###Result: 2 sets of accuracies, 2 sets of errors
+# - One for training set <--- no one cares about
+# - One for test set <--- everyone cares about, also called "generalization error"
+# 
+# <img src=https://raw.githubusercontent.com/tijptjik/DS_assets/master/overfitting.png>
+
 # <codecell>
 
 %matplotlib inline
@@ -117,13 +135,14 @@ print 'Composition of test set:', np.unique(y_test, return_counts=True)
 
 # <codecell>
 
-est = LogisticRegression()
-est.fit(X_train, y_train)
-y_predicted = est.predict(X_test)
+clf = LogisticRegression()
+clf.fit(X_train, y_train)
 
 # <markdowncell>
 
 # ###4. Evaluate model
+# 
+# *Test it on the held-out test set*
 # 
 # * **accuracy**: percent correct
 # 
@@ -131,6 +150,10 @@ y_predicted = est.predict(X_test)
 # * When especially interested in a particular class, say "positive,"
 #     - **precision**: of the things you called "positive," what percent were correct?
 #     - **recall**: of all positive cases, what percent did you find?
+
+# <codecell>
+
+y_predicted = clf.predict(X_test)
 
 # <codecell>
 
@@ -145,7 +168,19 @@ print pd.DataFrame(metrics.confusion_matrix(y_test, y_predicted))
 
 # <markdowncell>
 
+# ###Out of curiousity, how well did we do on the training set?
+
+# <codecell>
+
+print 'Accuracy:', metrics.accuracy_score(y_train, clf.predict(X_train))
+
+# <markdowncell>
+
 # ##ROC curve
+# 
+# x-axis: What percent of negative things did you falsely call positive?
+# 
+# y-axis: Of the positive examples, what percent did you find?
 
 # <codecell>
 
@@ -159,7 +194,7 @@ fpr, tpr, roc_thresholds = roc_curve(y_label_test, proba_label)
 plt.plot(fpr, tpr, '-', linewidth=5)
 plt.plot([0, 1], [0, 1], 'k--')
 plt.xlabel('False Positive Rate ("Cost")')
-plt.ylabel('True Positive Rate ("Hit rate")')
+plt.ylabel('True Positive Rate ("Benefit")')
 plt.title('Receiver operating characteristic example')
 plt.legend(loc="lower right")   
     
@@ -171,4 +206,13 @@ plt.legend(loc="lower right")
 # <codecell>
 
 pd.DataFrame(zip(vectorizer.get_feature_names(), np.exp(est.coef_[0]))).sort(1)
+
+# <markdowncell>
+
+# #Exercise
+# 
+# ##Create a classifier for *all* 21 languages
+# i.e. Given a sentence, output its most probable language
+# 
+# **hint**: Create 21 classifiers which classify *langauge x* vs. *all other languages* and choose langauge with highest probability
 
