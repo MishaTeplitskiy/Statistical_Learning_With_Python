@@ -54,6 +54,9 @@
 # **Regression Example**
 # 
 # **Classification Example**
+# 
+# * 2 examples, 2 research communities
+# * Understanding vs. predicting
 
 # <markdowncell>
 
@@ -161,12 +164,12 @@ df.year.value_counts()
 # <codecell>
 
 df.year.apply(lambda x: '19' + str(x)) # this spits out the Series we like
-# df.year = df.year.apply(lambda x: '19' + str(x))
+df.year = df.year.apply(lambda x: '19' + str(x))
 
 # <codecell>
 
 #Uh oh, let's change it back!
-df.year = df.year.str[-2:]
+df.year.str[-2:]
 
 # <markdowncell>
 
@@ -220,7 +223,7 @@ plt.legend()
 
 # <codecell>
 
-plt.scatter(df.year, df.weight)
+plt.scatter(df.year.astype(int), df.weight)
 
 # <codecell>
 

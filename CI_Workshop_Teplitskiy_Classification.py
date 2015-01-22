@@ -3,7 +3,7 @@
 
 # <markdowncell>
 
-# #Building a Language Detector
+# #Classification: Building a Language Detector
 # 
 # 
 # - inspired by http://bugra.github.io/work/notes/2014-12-26/language-detector-via-scikit-learn/
@@ -35,15 +35,6 @@
 import matplotlib.pyplot as plt
 import pandas as pd
 import numpy as np
-
-# <markdowncell>
-
-# ### Example: Language of Tweets
-
-# <codecell>
-
-from IPython.display import Image
-Image(url='http://i.imgur.com/Kr5sfJ8.png')
 
 # <markdowncell>
 
@@ -106,7 +97,7 @@ from sklearn.cross_validation import train_test_split
 # #                             use_idf=False)
 
 vectorizer = CountVectorizer(max_features=50,
-#                              analyzer='char'
+                             analyzer='char',
                                 )
 
 
@@ -120,7 +111,7 @@ print X_features.shape, type(X_features)
 # <codecell>
 
 y = df_sub.language.values
-X_train, X_test, y_train, y_test = train_test_split(X_features, y, test_size=0.2, random_state=1)  
+X_train, X_test, y_train, y_test = train_test_split(X_features, y, test_size=0.2)  
 #setting random_state=0 to make #sure we all get the same answer
 
 # <codecell>
@@ -187,7 +178,7 @@ print 'Accuracy:', metrics.accuracy_score(y_train, clf.predict(X_train))
 from sklearn.metrics import roc_curve, roc_auc_score
 
 y_label_test = np.asarray(y_test == 'lv', dtype=int)
-proba = est.predict_proba(X_test)
+proba = clf.predict_proba(X_test)
 proba_label = proba[:,1]
 fpr, tpr, roc_thresholds = roc_curve(y_label_test, proba_label)
 
@@ -205,7 +196,7 @@ plt.legend(loc="lower right")
 
 # <codecell>
 
-pd.DataFrame(zip(vectorizer.get_feature_names(), np.exp(est.coef_[0]))).sort(1)
+pd.DataFrame(zip(vectorizer.get_feature_names(), np.exp(clf.coef_[0]))).sort(1)
 
 # <markdowncell>
 

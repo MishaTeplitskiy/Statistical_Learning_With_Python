@@ -1,0 +1,324 @@
+{
+ "metadata": {
+  "name": "",
+  "signature": "sha256:9370407d95ae5640df9035c585eb544e7c7e0ea59424bb84023c5955298a8b94"
+ },
+ "nbformat": 3,
+ "nbformat_minor": 0,
+ "worksheets": [
+  {
+   "cells": [
+    {
+     "cell_type": "markdown",
+     "metadata": {},
+     "source": [
+      "#Regression Example\n",
+      "\n",
+      "Goal: \n",
+      "- Find best line such that\n",
+      "\n",
+      "<img src=http://www.sigmazone.com/images/Pit91_Scatter_Error.gif>"
+     ]
+    },
+    {
+     "cell_type": "code",
+     "collapsed": false,
+     "input": [
+      "%matplotlib inline\n",
+      "import matplotlib.pyplot as plt\n",
+      "import numpy as np\n",
+      "import pandas as pd\n",
+      "import statsmodels.formula.api as smf"
+     ],
+     "language": "python",
+     "metadata": {},
+     "outputs": [],
+     "prompt_number": 2
+    },
+    {
+     "cell_type": "markdown",
+     "metadata": {},
+     "source": [
+      "##Data: Boston Housing Prices"
+     ]
+    },
+    {
+     "cell_type": "code",
+     "collapsed": false,
+     "input": [
+      "from sklearn.datasets import load_boston\n",
+      "boston = load_boston()"
+     ],
+     "language": "python",
+     "metadata": {},
+     "outputs": [],
+     "prompt_number": 13
+    },
+    {
+     "cell_type": "code",
+     "collapsed": false,
+     "input": [
+      "print boston.DESCR"
+     ],
+     "language": "python",
+     "metadata": {},
+     "outputs": [
+      {
+       "output_type": "stream",
+       "stream": "stdout",
+       "text": [
+        "Boston House Prices dataset\n",
+        "\n",
+        "Notes\n",
+        "------\n",
+        "Data Set Characteristics:  \n",
+        "\n",
+        "    :Number of Instances: 506 \n",
+        "\n",
+        "    :Number of Attributes: 13 numeric/categorical predictive\n",
+        "    \n",
+        "    :Median Value (attribute 14) is usually the target\n",
+        "\n",
+        "    :Attribute Information (in order):\n",
+        "        - CRIM     per capita crime rate by town\n",
+        "        - ZN       proportion of residential land zoned for lots over 25,000 sq.ft.\n",
+        "        - INDUS    proportion of non-retail business acres per town\n",
+        "        - CHAS     Charles River dummy variable (= 1 if tract bounds river; 0 otherwise)\n",
+        "        - NOX      nitric oxides concentration (parts per 10 million)\n",
+        "        - RM       average number of rooms per dwelling\n",
+        "        - AGE      proportion of owner-occupied units built prior to 1940\n",
+        "        - DIS      weighted distances to five Boston employment centres\n",
+        "        - RAD      index of accessibility to radial highways\n",
+        "        - TAX      full-value property-tax rate per $10,000\n",
+        "        - PTRATIO  pupil-teacher ratio by town\n",
+        "        - B        1000(Bk - 0.63)^2 where Bk is the proportion of blacks by town\n",
+        "        - LSTAT    % lower status of the population\n",
+        "        - MEDV     Median value of owner-occupied homes in $1000's\n",
+        "\n",
+        "    :Missing Attribute Values: None\n",
+        "\n",
+        "    :Creator: Harrison, D. and Rubinfeld, D.L.\n",
+        "\n",
+        "This is a copy of UCI ML housing dataset.\n",
+        "http://archive.ics.uci.edu/ml/datasets/Housing\n",
+        "\n",
+        "\n",
+        "This dataset was taken from the StatLib library which is maintained at Carnegie Mellon University.\n",
+        "\n",
+        "The Boston house-price data of Harrison, D. and Rubinfeld, D.L. 'Hedonic\n",
+        "prices and the demand for clean air', J. Environ. Economics & Management,\n",
+        "vol.5, 81-102, 1978.   Used in Belsley, Kuh & Welsch, 'Regression diagnostics\n",
+        "...', Wiley, 1980.   N.B. Various transformations are used in the table on\n",
+        "pages 244-261 of the latter.\n",
+        "\n",
+        "The Boston house-price data has been used in many machine learning papers that address regression\n",
+        "problems.   \n",
+        "     \n",
+        "**References**\n",
+        "\n",
+        "   - Belsley, Kuh & Welsch, 'Regression diagnostics: Identifying Influential Data and Sources of Collinearity', Wiley, 1980. 244-261.\n",
+        "   - Quinlan,R. (1993). Combining Instance-Based and Model-Based Learning. In Proceedings on the Tenth International Conference of Machine Learning, 236-243, University of Massachusetts, Amherst. Morgan Kaufmann.\n",
+        "   - many more! (see http://archive.ics.uci.edu/ml/datasets/Housing)\n",
+        "\n"
+       ]
+      }
+     ],
+     "prompt_number": 16
+    },
+    {
+     "cell_type": "code",
+     "collapsed": false,
+     "input": [
+      "column_names = [\n",
+      "        'CRIM',     #per capita crime rate by town\n",
+      "        'ZN',       #proportion of residential land zoned for lots over 25,000 sq.ft.\n",
+      "        'INDUS',    #proportion of non-retail business acres per town\n",
+      "        'CHAS',     #Charles River dummy variable (= 1 if tract bounds river; 0 otherwise)\n",
+      "        'NOX',      #nitric oxides concentration (parts per 10 million)\n",
+      "        'RM',       #average number of rooms per dwelling\n",
+      "        'AGE',      #proportion of owner-occupied units built prior to 1940\n",
+      "        'DIS',      #weighted distances to five Boston employment centres\n",
+      "        'RAD',      #index of accessibility to radial highways\n",
+      "        'TAX',      #full-value property-tax rate per $10,000\n",
+      "        'PTRATIO',  #pupil-teacher ratio by town\n",
+      "        'B',       # 1000(Bk - 0.63)^2 where Bk is the proportion of blacks by town\n",
+      "        'LSTAT']  #  % lower status of the population\n",
+      "       # 'MEDV'] #     Median value of owner-occupied homes in $1000's\n",
+      "\n",
+      "df = pd.DataFrame(boston.data, columns=column_names)\n",
+      "df['MEDV'] = boston.target"
+     ],
+     "language": "python",
+     "metadata": {},
+     "outputs": [],
+     "prompt_number": 19
+    },
+    {
+     "cell_type": "code",
+     "collapsed": false,
+     "input": [
+      "df.columns"
+     ],
+     "language": "python",
+     "metadata": {},
+     "outputs": [
+      {
+       "metadata": {},
+       "output_type": "pyout",
+       "prompt_number": 24,
+       "text": [
+        "Index([u'CRIM', u'ZN', u'INDUS', u'CHAS', u'NOX', u'RM', u'AGE', u'DIS', u'RAD', u'TAX', u'PTRATIO', u'B', u'LSTAT', u'MEDV'], dtype='object')"
+       ]
+      }
+     ],
+     "prompt_number": 24
+    },
+    {
+     "cell_type": "code",
+     "collapsed": false,
+     "input": [
+      "results = smf.ols(formula='MEDV ~ CRIM + ZN', data=df).fit()\n",
+      "results.summary()"
+     ],
+     "language": "python",
+     "metadata": {},
+     "outputs": [
+      {
+       "html": [
+        "<table class=\"simpletable\">\n",
+        "<caption>OLS Regression Results</caption>\n",
+        "<tr>\n",
+        "  <th>Dep. Variable:</th>          <td>MEDV</td>       <th>  R-squared:         </th> <td>   0.233</td>\n",
+        "</tr>\n",
+        "<tr>\n",
+        "  <th>Model:</th>                   <td>OLS</td>       <th>  Adj. R-squared:    </th> <td>   0.230</td>\n",
+        "</tr>\n",
+        "<tr>\n",
+        "  <th>Method:</th>             <td>Least Squares</td>  <th>  F-statistic:       </th> <td>   76.21</td>\n",
+        "</tr>\n",
+        "<tr>\n",
+        "  <th>Date:</th>             <td>Mon, 19 Jan 2015</td> <th>  Prob (F-statistic):</th> <td>1.23e-29</td>\n",
+        "</tr>\n",
+        "<tr>\n",
+        "  <th>Time:</th>                 <td>23:09:27</td>     <th>  Log-Likelihood:    </th> <td> -1773.3</td>\n",
+        "</tr>\n",
+        "<tr>\n",
+        "  <th>No. Observations:</th>      <td>   506</td>      <th>  AIC:               </th> <td>   3553.</td>\n",
+        "</tr>\n",
+        "<tr>\n",
+        "  <th>Df Residuals:</th>          <td>   503</td>      <th>  BIC:               </th> <td>   3565.</td>\n",
+        "</tr>\n",
+        "<tr>\n",
+        "  <th>Df Model:</th>              <td>     2</td>      <th>                     </th>     <td> </td>   \n",
+        "</tr>\n",
+        "</table>\n",
+        "<table class=\"simpletable\">\n",
+        "<tr>\n",
+        "      <td></td>         <th>coef</th>     <th>std err</th>      <th>t</th>      <th>P>|t|</th> <th>[95.0% Conf. Int.]</th> \n",
+        "</tr>\n",
+        "<tr>\n",
+        "  <th>Intercept</th> <td>   22.4668</td> <td>    0.442</td> <td>   50.862</td> <td> 0.000</td> <td>   21.599    23.335</td>\n",
+        "</tr>\n",
+        "<tr>\n",
+        "  <th>CRIM</th>      <td>   -0.3498</td> <td>    0.043</td> <td>   -8.202</td> <td> 0.000</td> <td>   -0.434    -0.266</td>\n",
+        "</tr>\n",
+        "<tr>\n",
+        "  <th>ZN</th>        <td>    0.1164</td> <td>    0.016</td> <td>    7.406</td> <td> 0.000</td> <td>    0.086     0.147</td>\n",
+        "</tr>\n",
+        "</table>\n",
+        "<table class=\"simpletable\">\n",
+        "<tr>\n",
+        "  <th>Omnibus:</th>       <td>163.895</td> <th>  Durbin-Watson:     </th> <td>   0.756</td>\n",
+        "</tr>\n",
+        "<tr>\n",
+        "  <th>Prob(Omnibus):</th> <td> 0.000</td>  <th>  Jarque-Bera (JB):  </th> <td> 429.044</td>\n",
+        "</tr>\n",
+        "<tr>\n",
+        "  <th>Skew:</th>          <td> 1.619</td>  <th>  Prob(JB):          </th> <td>6.83e-94</td>\n",
+        "</tr>\n",
+        "<tr>\n",
+        "  <th>Kurtosis:</th>      <td> 6.140</td>  <th>  Cond. No.          </th> <td>    31.9</td>\n",
+        "</tr>\n",
+        "</table>"
+       ],
+       "metadata": {},
+       "output_type": "pyout",
+       "prompt_number": 22,
+       "text": [
+        "<class 'statsmodels.iolib.summary.Summary'>\n",
+        "\"\"\"\n",
+        "                            OLS Regression Results                            \n",
+        "==============================================================================\n",
+        "Dep. Variable:                   MEDV   R-squared:                       0.233\n",
+        "Model:                            OLS   Adj. R-squared:                  0.230\n",
+        "Method:                 Least Squares   F-statistic:                     76.21\n",
+        "Date:                Mon, 19 Jan 2015   Prob (F-statistic):           1.23e-29\n",
+        "Time:                        23:09:27   Log-Likelihood:                -1773.3\n",
+        "No. Observations:                 506   AIC:                             3553.\n",
+        "Df Residuals:                     503   BIC:                             3565.\n",
+        "Df Model:                           2                                         \n",
+        "==============================================================================\n",
+        "                 coef    std err          t      P>|t|      [95.0% Conf. Int.]\n",
+        "------------------------------------------------------------------------------\n",
+        "Intercept     22.4668      0.442     50.862      0.000        21.599    23.335\n",
+        "CRIM          -0.3498      0.043     -8.202      0.000        -0.434    -0.266\n",
+        "ZN             0.1164      0.016      7.406      0.000         0.086     0.147\n",
+        "==============================================================================\n",
+        "Omnibus:                      163.895   Durbin-Watson:                   0.756\n",
+        "Prob(Omnibus):                  0.000   Jarque-Bera (JB):              429.044\n",
+        "Skew:                           1.619   Prob(JB):                     6.83e-94\n",
+        "Kurtosis:                       6.140   Cond. No.                         31.9\n",
+        "==============================================================================\n",
+        "\"\"\""
+       ]
+      }
+     ],
+     "prompt_number": 22
+    },
+    {
+     "cell_type": "markdown",
+     "metadata": {},
+     "source": [
+      "##Handling categorical variables"
+     ]
+    },
+    {
+     "cell_type": "code",
+     "collapsed": false,
+     "input": [
+      "#Rooms vs Price\n",
+      "#Bias term"
+     ],
+     "language": "python",
+     "metadata": {},
+     "outputs": []
+    },
+    {
+     "cell_type": "code",
+     "collapsed": false,
+     "input": [],
+     "language": "python",
+     "metadata": {},
+     "outputs": []
+    },
+    {
+     "cell_type": "code",
+     "collapsed": false,
+     "input": [],
+     "language": "python",
+     "metadata": {},
+     "outputs": []
+    },
+    {
+     "cell_type": "code",
+     "collapsed": false,
+     "input": [],
+     "language": "python",
+     "metadata": {},
+     "outputs": []
+    }
+   ],
+   "metadata": {}
+  }
+ ]
+}

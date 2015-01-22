@@ -1,0 +1,894 @@
+{
+ "metadata": {
+  "name": "",
+  "signature": "sha256:8d7fcebdbbbdca5f214f2d880e54715931d72feb0cd8a27b8c78aeb9b2415b1e"
+ },
+ "nbformat": 3,
+ "nbformat_minor": 0,
+ "worksheets": [
+  {
+   "cells": [
+    {
+     "cell_type": "markdown",
+     "metadata": {},
+     "source": [
+      "#Building a Language Detector\n",
+      "\n",
+      "\n",
+      "- inspired by http://bugra.github.io/work/notes/2014-12-26/language-detector-via-scikit-learn/"
+     ]
+    },
+    {
+     "cell_type": "code",
+     "collapsed": false,
+     "input": [
+      "%matplotlib inline"
+     ],
+     "language": "python",
+     "metadata": {},
+     "outputs": [],
+     "prompt_number": 2
+    },
+    {
+     "cell_type": "code",
+     "collapsed": false,
+     "input": [
+      "import matplotlib.pyplot as plt\n",
+      "import pandas as pd\n",
+      "import numpy as np"
+     ],
+     "language": "python",
+     "metadata": {},
+     "outputs": [],
+     "prompt_number": 3
+    },
+    {
+     "cell_type": "markdown",
+     "metadata": {},
+     "source": [
+      "### Example: Language of Tweets"
+     ]
+    },
+    {
+     "cell_type": "code",
+     "collapsed": false,
+     "input": [
+      "from IPython.display import Image\n",
+      "Image(url='http://i.imgur.com/Kr5sfJ8.png')"
+     ],
+     "language": "python",
+     "metadata": {},
+     "outputs": [
+      {
+       "html": [
+        "<img src=\"http://i.imgur.com/Kr5sfJ8.png\"/>"
+       ],
+       "metadata": {},
+       "output_type": "pyout",
+       "prompt_number": 4,
+       "text": [
+        "<IPython.core.display.Image at 0x2e8ab50>"
+       ]
+      }
+     ],
+     "prompt_number": 4
+    },
+    {
+     "cell_type": "markdown",
+     "metadata": {},
+     "source": [
+      "##Data Description"
+     ]
+    },
+    {
+     "cell_type": "markdown",
+     "metadata": {},
+     "source": [
+      "European Parliament Proceedings corpus\n",
+      "- https://language-detection.googlecode.com/git-history/packages/packages/europarl-test.zip\n",
+      "- 21 languages, 1000 sentences each \n"
+     ]
+    },
+    {
+     "cell_type": "markdown",
+     "metadata": {},
+     "source": [
+      "##Import data and put it in pandas dataframe"
+     ]
+    },
+    {
+     "cell_type": "code",
+     "collapsed": false,
+     "input": [
+      "import codecs\n",
+      "lines = codecs.open('europarl.txt', 'r', 'utf-8').readlines()\n",
+      "lines = [l.split('\\t') for l in lines]"
+     ],
+     "language": "python",
+     "metadata": {},
+     "outputs": [],
+     "prompt_number": 7
+    },
+    {
+     "cell_type": "code",
+     "collapsed": false,
+     "input": [
+      "df = pd.DataFrame(lines, columns=['language', 'text'])\n",
+      "df.head()"
+     ],
+     "language": "python",
+     "metadata": {},
+     "outputs": [
+      {
+       "html": [
+        "<div style=\"max-height:1000px;max-width:1500px;overflow:auto;\">\n",
+        "<table border=\"1\" class=\"dataframe\">\n",
+        "  <thead>\n",
+        "    <tr style=\"text-align: right;\">\n",
+        "      <th></th>\n",
+        "      <th>language</th>\n",
+        "      <th>text</th>\n",
+        "    </tr>\n",
+        "  </thead>\n",
+        "  <tbody>\n",
+        "    <tr>\n",
+        "      <th>0</th>\n",
+        "      <td> bg</td>\n",
+        "      <td> \"\u0415\u0432\u0440\u043e\u043f\u0430 2020\" \u043d\u0435 \u0442\u0440\u044f\u0431\u0432\u0430 \u0434\u0430 \u0441\u0442\u0430\u0440\u0442\u0438\u0440\u0430 \u043d\u043e\u0432 \u043a\u043e\u043d\u043a\u0443\u0440...</td>\n",
+        "    </tr>\n",
+        "    <tr>\n",
+        "      <th>1</th>\n",
+        "      <td> bg</td>\n",
+        "      <td> (CS) \u041d\u0430\u0439-\u0433\u043e\u043b\u044f\u043c\u0430\u0442\u0430 \u043d\u0435\u0441\u043f\u0440\u0430\u0432\u0435\u0434\u043b\u0438\u0432\u043e\u0441\u0442 \u043d\u0430 \u0441\u0435\u0433\u0430\u0448\u043d\u0430\u0442\u0430...</td>\n",
+        "    </tr>\n",
+        "    <tr>\n",
+        "      <th>2</th>\n",
+        "      <td> bg</td>\n",
+        "      <td> (DE) \u0413-\u0436\u043e \u043f\u0440\u0435\u0434\u0441\u0435\u0434\u0430\u0442\u0435\u043b, \u0433-\u043d \u0447\u043b\u0435\u043d \u043d\u0430 \u041a\u043e\u043c\u0438\u0441\u0438\u044f\u0442\u0430, ...</td>\n",
+        "    </tr>\n",
+        "    <tr>\n",
+        "      <th>3</th>\n",
+        "      <td> bg</td>\n",
+        "      <td> (DE) \u0413-\u043d \u043f\u0440\u0435\u0434\u0441\u0435\u0434\u0430\u0442\u0435\u043b, \u0431\u0438\u0445 \u0438\u0441\u043a\u0430\u043b \u0434\u0430 \u0437\u0430\u043f\u043e\u0447\u043d\u0430 \u0441 \u043a...</td>\n",
+        "    </tr>\n",
+        "    <tr>\n",
+        "      <th>4</th>\n",
+        "      <td> bg</td>\n",
+        "      <td> (DE) \u0413-\u043d \u043f\u0440\u0435\u0434\u0441\u0435\u0434\u0430\u0442\u0435\u043b, \u0432\u044a\u043f\u0440\u043e\u0441\u044a\u0442 \u0437\u0430 \u043f\u0440\u0430\u0432\u0430\u0442\u0430 \u043d\u0430 \u0447...</td>\n",
+        "    </tr>\n",
+        "  </tbody>\n",
+        "</table>\n",
+        "</div>"
+       ],
+       "metadata": {},
+       "output_type": "pyout",
+       "prompt_number": 8,
+       "text": [
+        "  language                                               text\n",
+        "0       bg  \"\u0415\u0432\u0440\u043e\u043f\u0430 2020\" \u043d\u0435 \u0442\u0440\u044f\u0431\u0432\u0430 \u0434\u0430 \u0441\u0442\u0430\u0440\u0442\u0438\u0440\u0430 \u043d\u043e\u0432 \u043a\u043e\u043d\u043a\u0443\u0440...\n",
+        "1       bg  (CS) \u041d\u0430\u0439-\u0433\u043e\u043b\u044f\u043c\u0430\u0442\u0430 \u043d\u0435\u0441\u043f\u0440\u0430\u0432\u0435\u0434\u043b\u0438\u0432\u043e\u0441\u0442 \u043d\u0430 \u0441\u0435\u0433\u0430\u0448\u043d\u0430\u0442\u0430...\n",
+        "2       bg  (DE) \u0413-\u0436\u043e \u043f\u0440\u0435\u0434\u0441\u0435\u0434\u0430\u0442\u0435\u043b, \u0433-\u043d \u0447\u043b\u0435\u043d \u043d\u0430 \u041a\u043e\u043c\u0438\u0441\u0438\u044f\u0442\u0430, ...\n",
+        "3       bg  (DE) \u0413-\u043d \u043f\u0440\u0435\u0434\u0441\u0435\u0434\u0430\u0442\u0435\u043b, \u0431\u0438\u0445 \u0438\u0441\u043a\u0430\u043b \u0434\u0430 \u0437\u0430\u043f\u043e\u0447\u043d\u0430 \u0441 \u043a...\n",
+        "4       bg  (DE) \u0413-\u043d \u043f\u0440\u0435\u0434\u0441\u0435\u0434\u0430\u0442\u0435\u043b, \u0432\u044a\u043f\u0440\u043e\u0441\u044a\u0442 \u0437\u0430 \u043f\u0440\u0430\u0432\u0430\u0442\u0430 \u043d\u0430 \u0447..."
+       ]
+      }
+     ],
+     "prompt_number": 8
+    },
+    {
+     "cell_type": "code",
+     "collapsed": false,
+     "input": [
+      "# how many of each language\n",
+      "df.language.value_counts()"
+     ],
+     "language": "python",
+     "metadata": {},
+     "outputs": [
+      {
+       "metadata": {},
+       "output_type": "pyout",
+       "prompt_number": 9,
+       "text": [
+        "hu    1000\n",
+        "nl    1000\n",
+        "fi    1000\n",
+        "ro    1000\n",
+        "de    1000\n",
+        "da    1000\n",
+        "pt    1000\n",
+        "pl    1000\n",
+        "it    1000\n",
+        "bg    1000\n",
+        "sv    1000\n",
+        "cs    1000\n",
+        "sk    1000\n",
+        "sl    1000\n",
+        "lv    1000\n",
+        "lt    1000\n",
+        "el    1000\n",
+        "en    1000\n",
+        "et    1000\n",
+        "es    1000\n",
+        "fr    1000\n",
+        "dtype: int64"
+       ]
+      }
+     ],
+     "prompt_number": 9
+    },
+    {
+     "cell_type": "code",
+     "collapsed": false,
+     "input": [
+      "# let's consider just two: english (en) and french (fr)\n",
+      "df[df.language=='en'].head()"
+     ],
+     "language": "python",
+     "metadata": {},
+     "outputs": [
+      {
+       "html": [
+        "<div style=\"max-height:1000px;max-width:1500px;overflow:auto;\">\n",
+        "<table border=\"1\" class=\"dataframe\">\n",
+        "  <thead>\n",
+        "    <tr style=\"text-align: right;\">\n",
+        "      <th></th>\n",
+        "      <th>language</th>\n",
+        "      <th>text</th>\n",
+        "    </tr>\n",
+        "  </thead>\n",
+        "  <tbody>\n",
+        "    <tr>\n",
+        "      <th>5000</th>\n",
+        "      <td> en</td>\n",
+        "      <td>                   (BG) Thank you, Mr President.\\n</td>\n",
+        "    </tr>\n",
+        "    <tr>\n",
+        "      <th>5001</th>\n",
+        "      <td> en</td>\n",
+        "      <td> (EL) Madam President, I agree and recognise Tu...</td>\n",
+        "    </tr>\n",
+        "    <tr>\n",
+        "      <th>5002</th>\n",
+        "      <td> en</td>\n",
+        "      <td> (FI) Madam President, firstly, I would like to...</td>\n",
+        "    </tr>\n",
+        "    <tr>\n",
+        "      <th>5003</th>\n",
+        "      <td> en</td>\n",
+        "      <td> (FI) Mr President, the Treaty of Lisbon will r...</td>\n",
+        "    </tr>\n",
+        "    <tr>\n",
+        "      <th>5004</th>\n",
+        "      <td> en</td>\n",
+        "      <td> (FR) Madam President, one of the priorities of...</td>\n",
+        "    </tr>\n",
+        "  </tbody>\n",
+        "</table>\n",
+        "</div>"
+       ],
+       "metadata": {},
+       "output_type": "pyout",
+       "prompt_number": 10,
+       "text": [
+        "     language                                               text\n",
+        "5000       en                    (BG) Thank you, Mr President.\\n\n",
+        "5001       en  (EL) Madam President, I agree and recognise Tu...\n",
+        "5002       en  (FI) Madam President, firstly, I would like to...\n",
+        "5003       en  (FI) Mr President, the Treaty of Lisbon will r...\n",
+        "5004       en  (FR) Madam President, one of the priorities of..."
+       ]
+      }
+     ],
+     "prompt_number": 10
+    },
+    {
+     "cell_type": "code",
+     "collapsed": false,
+     "input": [
+      "df_sub = df[df.language.isin(('lt', 'lv'))]"
+     ],
+     "language": "python",
+     "metadata": {},
+     "outputs": [],
+     "prompt_number": 70
+    },
+    {
+     "cell_type": "markdown",
+     "metadata": {},
+     "source": [
+      "##Build classifier"
+     ]
+    },
+    {
+     "cell_type": "code",
+     "collapsed": false,
+     "input": [
+      "from sklearn.feature_extraction.text import TfidfVectorizer, CountVectorizer\n",
+      "from sklearn.linear_model import LogisticRegression\n",
+      "from sklearn.cross_validation import train_test_split"
+     ],
+     "language": "python",
+     "metadata": {},
+     "outputs": [],
+     "prompt_number": 71
+    },
+    {
+     "cell_type": "markdown",
+     "metadata": {},
+     "source": [
+      "###1. Engineer features we will use to predict"
+     ]
+    },
+    {
+     "cell_type": "code",
+     "collapsed": false,
+     "input": [
+      "# vectorizer = TfidfVectorizer(ngram_range=(1,3),\n",
+      "# #                              analyzer='char',\n",
+      "#                              max_features=50)\n",
+      "# #                             use_idf=False)\n",
+      "\n",
+      "vectorizer = CountVectorizer(max_features=50,\n",
+      "#                              analyzer='char'\n",
+      "                                )\n",
+      "\n",
+      "\n",
+      "X_features = vectorizer.fit_transform(df_sub.text)  # fit_transform() is like calling fit() and then predict()\n",
+      "print X_features.shape, type(X_features)"
+     ],
+     "language": "python",
+     "metadata": {},
+     "outputs": [
+      {
+       "output_type": "stream",
+       "stream": "stdout",
+       "text": [
+        "(2000, 50) <class 'scipy.sparse.csr.csr_matrix'>\n"
+       ]
+      }
+     ],
+     "prompt_number": 81
+    },
+    {
+     "cell_type": "markdown",
+     "metadata": {},
+     "source": [
+      "###2. Split into train and test sets"
+     ]
+    },
+    {
+     "cell_type": "code",
+     "collapsed": false,
+     "input": [
+      "y = df_sub.language.values\n",
+      "X_train, X_test, y_train, y_test = train_test_split(X_features, y, test_size=0.2, random_state=1)  \n",
+      "#setting random_state=0 to make #sure we all get the same answer"
+     ],
+     "language": "python",
+     "metadata": {},
+     "outputs": [],
+     "prompt_number": 82
+    },
+    {
+     "cell_type": "code",
+     "collapsed": false,
+     "input": [
+      "#composition of train and test sets\n",
+      "print 'Composition of train set:', np.unique(y_train, return_counts=True)\n",
+      "print 'Composition of test set:', np.unique(y_test, return_counts=True)"
+     ],
+     "language": "python",
+     "metadata": {},
+     "outputs": [
+      {
+       "output_type": "stream",
+       "stream": "stdout",
+       "text": [
+        "Composition of train set: (array([u'lt', u'lv'], dtype=object), array([805, 795]))\n",
+        "Composition of test set: (array([u'lt', u'lv'], dtype=object), array([195, 205]))\n"
+       ]
+      }
+     ],
+     "prompt_number": 83
+    },
+    {
+     "cell_type": "markdown",
+     "metadata": {},
+     "source": [
+      "###3. Train model"
+     ]
+    },
+    {
+     "cell_type": "code",
+     "collapsed": false,
+     "input": [
+      "clf = LogisticRegression()\n",
+      "clf.fit(X_train, y_train)"
+     ],
+     "language": "python",
+     "metadata": {},
+     "outputs": [
+      {
+       "metadata": {},
+       "output_type": "pyout",
+       "prompt_number": 97,
+       "text": [
+        "LogisticRegression(C=1.0, class_weight=None, dual=False, fit_intercept=True,\n",
+        "          intercept_scaling=1, penalty='l2', random_state=None, tol=0.0001)"
+       ]
+      }
+     ],
+     "prompt_number": 97
+    },
+    {
+     "cell_type": "markdown",
+     "metadata": {},
+     "source": [
+      "###4. Evaluate model\n",
+      "\n",
+      "*Test it on the held-out test set*\n",
+      "\n",
+      "* **accuracy**: percent correct\n",
+      "\n",
+      "\n",
+      "* When especially interested in a particular class, say \"positive,\"\n",
+      "    - **precision**: of the things you called \"positive,\" what percent were correct?\n",
+      "    - **recall**: of all positive cases, what percent did you find?"
+     ]
+    },
+    {
+     "cell_type": "code",
+     "collapsed": false,
+     "input": [
+      "y_predicted = clf.predict(X_test)"
+     ],
+     "language": "python",
+     "metadata": {},
+     "outputs": [],
+     "prompt_number": 98
+    },
+    {
+     "cell_type": "code",
+     "collapsed": false,
+     "input": [
+      "from sklearn import metrics\n",
+      "print 'Accuracy:', metrics.accuracy_score(y_test, y_predicted)\n",
+      "print\n",
+      "print metrics.classification_report(y_test, y_predicted)\n",
+      "print\n",
+      "print 'confusion matrix'\n",
+      "print\n",
+      "print pd.DataFrame(metrics.confusion_matrix(y_test, y_predicted))"
+     ],
+     "language": "python",
+     "metadata": {},
+     "outputs": [
+      {
+       "output_type": "stream",
+       "stream": "stdout",
+       "text": [
+        "Accuracy: 0.945\n",
+        "\n",
+        "             precision    recall  f1-score   support\n",
+        "\n",
+        "         lt       0.92      0.97      0.95       195\n",
+        "         lv       0.97      0.92      0.94       205\n",
+        "\n",
+        "avg / total       0.95      0.94      0.94       400\n",
+        "\n",
+        "\n",
+        "confusion matrix\n",
+        "\n",
+        "     0    1\n",
+        "0  190    5\n",
+        "1   17  188\n"
+       ]
+      }
+     ],
+     "prompt_number": 85
+    },
+    {
+     "cell_type": "markdown",
+     "metadata": {},
+     "source": [
+      "##ROC curve\n",
+      "\n",
+      "x-axis: How many negative things did you falsely call positive?\n",
+      "\n",
+      "y-axis"
+     ]
+    },
+    {
+     "cell_type": "code",
+     "collapsed": false,
+     "input": [
+      "from sklearn.metrics import roc_curve, roc_auc_score\n",
+      "\n",
+      "y_label_test = np.asarray(y_test == 'lv', dtype=int)\n",
+      "proba = est.predict_proba(X_test)\n",
+      "proba_label = proba[:,1]\n",
+      "fpr, tpr, roc_thresholds = roc_curve(y_label_test, proba_label)\n",
+      "\n",
+      "plt.plot(fpr, tpr, '-', linewidth=5)\n",
+      "plt.plot([0, 1], [0, 1], 'k--')\n",
+      "plt.xlabel('False Positive Rate (\"Cost\")')\n",
+      "plt.ylabel('True Positive Rate (\"Hit rate\")')\n",
+      "plt.title('Receiver operating characteristic example')\n",
+      "plt.legend(loc=\"lower right\")   \n",
+      "    "
+     ],
+     "language": "python",
+     "metadata": {},
+     "outputs": [
+      {
+       "metadata": {},
+       "output_type": "display_data",
+       "png": "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\n",
+       "text": [
+        "<matplotlib.figure.Figure at 0x80d3bd0>"
+       ]
+      }
+     ],
+     "prompt_number": 95
+    },
+    {
+     "cell_type": "markdown",
+     "metadata": {},
+     "source": [
+      "#Examine the coefficients"
+     ]
+    },
+    {
+     "cell_type": "code",
+     "collapsed": false,
+     "input": [
+      "pd.DataFrame(zip(vectorizer.get_feature_names(), np.exp(est.coef_[0]))).sort(1)"
+     ],
+     "language": "python",
+     "metadata": {},
+     "outputs": [
+      {
+       "html": [
+        "<div style=\"max-height:1000px;max-width:1500px;overflow:auto;\">\n",
+        "<table border=\"1\" class=\"dataframe\">\n",
+        "  <thead>\n",
+        "    <tr style=\"text-align: right;\">\n",
+        "      <th></th>\n",
+        "      <th>0</th>\n",
+        "      <th>1</th>\n",
+        "    </tr>\n",
+        "  </thead>\n",
+        "  <tbody>\n",
+        "    <tr>\n",
+        "      <th>47</th>\n",
+        "      <td>        yra</td>\n",
+        "      <td>  0.126051</td>\n",
+        "    </tr>\n",
+        "    <tr>\n",
+        "      <th>36</th>\n",
+        "      <td>         su</td>\n",
+        "      <td>  0.145894</td>\n",
+        "    </tr>\n",
+        "    <tr>\n",
+        "      <th>7 </th>\n",
+        "      <td>        d\u0117l</td>\n",
+        "      <td>  0.153961</td>\n",
+        "    </tr>\n",
+        "    <tr>\n",
+        "      <th>37</th>\n",
+        "      <td>        tai</td>\n",
+        "      <td>  0.154843</td>\n",
+        "    </tr>\n",
+        "    <tr>\n",
+        "      <th>10</th>\n",
+        "      <td>    europos</td>\n",
+        "      <td>  0.161609</td>\n",
+        "    </tr>\n",
+        "    <tr>\n",
+        "      <th>24</th>\n",
+        "      <td>        mes</td>\n",
+        "      <td>  0.192872</td>\n",
+        "    </tr>\n",
+        "    <tr>\n",
+        "      <th>16</th>\n",
+        "      <td>        kad</td>\n",
+        "      <td>  0.200703</td>\n",
+        "    </tr>\n",
+        "    <tr>\n",
+        "      <th>17</th>\n",
+        "      <td>       kaip</td>\n",
+        "      <td>  0.208438</td>\n",
+        "    </tr>\n",
+        "    <tr>\n",
+        "      <th>4 </th>\n",
+        "      <td>       buvo</td>\n",
+        "      <td>  0.237114</td>\n",
+        "    </tr>\n",
+        "    <tr>\n",
+        "      <th>12</th>\n",
+        "      <td>         i\u0161</td>\n",
+        "      <td>  0.253726</td>\n",
+        "    </tr>\n",
+        "    <tr>\n",
+        "      <th>35</th>\n",
+        "      <td>       savo</td>\n",
+        "      <td>  0.254646</td>\n",
+        "    </tr>\n",
+        "    <tr>\n",
+        "      <th>38</th>\n",
+        "      <td>       taip</td>\n",
+        "      <td>  0.259890</td>\n",
+        "    </tr>\n",
+        "    <tr>\n",
+        "      <th>34</th>\n",
+        "      <td> pirmininke</td>\n",
+        "      <td>  0.263030</td>\n",
+        "    </tr>\n",
+        "    <tr>\n",
+        "      <th>5 </th>\n",
+        "      <td>       b\u016bti</td>\n",
+        "      <td>  0.284848</td>\n",
+        "    </tr>\n",
+        "    <tr>\n",
+        "      <th>28</th>\n",
+        "      <td>       m\u016bs\u0173</td>\n",
+        "      <td>  0.297363</td>\n",
+        "    </tr>\n",
+        "    <tr>\n",
+        "      <th>0 </th>\n",
+        "      <td>       apie</td>\n",
+        "      <td>  0.307787</td>\n",
+        "    </tr>\n",
+        "    <tr>\n",
+        "      <th>42</th>\n",
+        "      <td>       turi</td>\n",
+        "      <td>  0.381956</td>\n",
+        "    </tr>\n",
+        "    <tr>\n",
+        "      <th>40</th>\n",
+        "      <td>        tik</td>\n",
+        "      <td>  0.394189</td>\n",
+        "    </tr>\n",
+        "    <tr>\n",
+        "      <th>6 </th>\n",
+        "      <td>       b\u016bt\u0173</td>\n",
+        "      <td>  0.432735</td>\n",
+        "    </tr>\n",
+        "    <tr>\n",
+        "      <th>20</th>\n",
+        "      <td>   komisija</td>\n",
+        "      <td>  0.526675</td>\n",
+        "    </tr>\n",
+        "    <tr>\n",
+        "      <th>33</th>\n",
+        "      <td>        pat</td>\n",
+        "      <td>  0.588432</td>\n",
+        "    </tr>\n",
+        "    <tr>\n",
+        "      <th>3 </th>\n",
+        "      <td>        bet</td>\n",
+        "      <td>  0.859003</td>\n",
+        "    </tr>\n",
+        "    <tr>\n",
+        "      <th>11</th>\n",
+        "      <td>         ir</td>\n",
+        "      <td>  0.954821</td>\n",
+        "    </tr>\n",
+        "    <tr>\n",
+        "      <th>41</th>\n",
+        "      <td>         to</td>\n",
+        "      <td>  1.061239</td>\n",
+        "    </tr>\n",
+        "    <tr>\n",
+        "      <th>30</th>\n",
+        "      <td>         ne</td>\n",
+        "      <td>  1.062005</td>\n",
+        "    </tr>\n",
+        "    <tr>\n",
+        "      <th>14</th>\n",
+        "      <td>         jo</td>\n",
+        "      <td>  1.525974</td>\n",
+        "    </tr>\n",
+        "    <tr>\n",
+        "      <th>1 </th>\n",
+        "      <td>         ar</td>\n",
+        "      <td>  1.591012</td>\n",
+        "    </tr>\n",
+        "    <tr>\n",
+        "      <th>19</th>\n",
+        "      <td>         ko</td>\n",
+        "      <td>  2.157942</td>\n",
+        "    </tr>\n",
+        "    <tr>\n",
+        "      <th>13</th>\n",
+        "      <td>         ja</td>\n",
+        "      <td>  2.420222</td>\n",
+        "    </tr>\n",
+        "    <tr>\n",
+        "      <th>18</th>\n",
+        "      <td>        kas</td>\n",
+        "      <td>  2.568358</td>\n",
+        "    </tr>\n",
+        "    <tr>\n",
+        "      <th>25</th>\n",
+        "      <td>       mums</td>\n",
+        "      <td>  2.623253</td>\n",
+        "    </tr>\n",
+        "    <tr>\n",
+        "      <th>48</th>\n",
+        "      <td>       \u013coti</td>\n",
+        "      <td>  3.294740</td>\n",
+        "    </tr>\n",
+        "    <tr>\n",
+        "      <th>46</th>\n",
+        "      <td>        vai</td>\n",
+        "      <td>  3.381308</td>\n",
+        "    </tr>\n",
+        "    <tr>\n",
+        "      <th>29</th>\n",
+        "      <td>        nav</td>\n",
+        "      <td>  3.509438</td>\n",
+        "    </tr>\n",
+        "    <tr>\n",
+        "      <th>27</th>\n",
+        "      <td>       m\u016bsu</td>\n",
+        "      <td>  3.567775</td>\n",
+        "    </tr>\n",
+        "    <tr>\n",
+        "      <th>49</th>\n",
+        "      <td>         \u0161o</td>\n",
+        "      <td>  4.286466</td>\n",
+        "    </tr>\n",
+        "    <tr>\n",
+        "      <th>9 </th>\n",
+        "      <td>         es</td>\n",
+        "      <td>  4.310928</td>\n",
+        "    </tr>\n",
+        "    <tr>\n",
+        "      <th>2 </th>\n",
+        "      <td>        ar\u012b</td>\n",
+        "      <td>  4.454182</td>\n",
+        "    </tr>\n",
+        "    <tr>\n",
+        "      <th>23</th>\n",
+        "      <td>        lai</td>\n",
+        "      <td>  4.963951</td>\n",
+        "    </tr>\n",
+        "    <tr>\n",
+        "      <th>22</th>\n",
+        "      <td>         k\u0101</td>\n",
+        "      <td>  5.043317</td>\n",
+        "    </tr>\n",
+        "    <tr>\n",
+        "      <th>39</th>\n",
+        "      <td>        tas</td>\n",
+        "      <td>  5.045899</td>\n",
+        "    </tr>\n",
+        "    <tr>\n",
+        "      <th>43</th>\n",
+        "      <td>         t\u0101</td>\n",
+        "      <td>  5.231538</td>\n",
+        "    </tr>\n",
+        "    <tr>\n",
+        "      <th>21</th>\n",
+        "      <td>      kungs</td>\n",
+        "      <td>  6.238261</td>\n",
+        "    </tr>\n",
+        "    <tr>\n",
+        "      <th>31</th>\n",
+        "      <td>         no</td>\n",
+        "      <td>  6.526362</td>\n",
+        "    </tr>\n",
+        "    <tr>\n",
+        "      <th>45</th>\n",
+        "      <td>         uz</td>\n",
+        "      <td>  7.663174</td>\n",
+        "    </tr>\n",
+        "    <tr>\n",
+        "      <th>8 </th>\n",
+        "      <td>    eiropas</td>\n",
+        "      <td>  9.190244</td>\n",
+        "    </tr>\n",
+        "    <tr>\n",
+        "      <th>26</th>\n",
+        "      <td>        m\u0113s</td>\n",
+        "      <td>  9.544766</td>\n",
+        "    </tr>\n",
+        "    <tr>\n",
+        "      <th>15</th>\n",
+        "      <td>         ka</td>\n",
+        "      <td> 10.245294</td>\n",
+        "    </tr>\n",
+        "    <tr>\n",
+        "      <th>32</th>\n",
+        "      <td>        par</td>\n",
+        "      <td> 14.371290</td>\n",
+        "    </tr>\n",
+        "    <tr>\n",
+        "      <th>44</th>\n",
+        "      <td>         un</td>\n",
+        "      <td> 17.439465</td>\n",
+        "    </tr>\n",
+        "  </tbody>\n",
+        "</table>\n",
+        "</div>"
+       ],
+       "metadata": {},
+       "output_type": "pyout",
+       "prompt_number": 87,
+       "text": [
+        "             0          1\n",
+        "47         yra   0.126051\n",
+        "36          su   0.145894\n",
+        "7          d\u0117l   0.153961\n",
+        "37         tai   0.154843\n",
+        "10     europos   0.161609\n",
+        "24         mes   0.192872\n",
+        "16         kad   0.200703\n",
+        "17        kaip   0.208438\n",
+        "4         buvo   0.237114\n",
+        "12          i\u0161   0.253726\n",
+        "35        savo   0.254646\n",
+        "38        taip   0.259890\n",
+        "34  pirmininke   0.263030\n",
+        "5         b\u016bti   0.284848\n",
+        "28        m\u016bs\u0173   0.297363\n",
+        "0         apie   0.307787\n",
+        "42        turi   0.381956\n",
+        "40         tik   0.394189\n",
+        "6         b\u016bt\u0173   0.432735\n",
+        "20    komisija   0.526675\n",
+        "33         pat   0.588432\n",
+        "3          bet   0.859003\n",
+        "11          ir   0.954821\n",
+        "41          to   1.061239\n",
+        "30          ne   1.062005\n",
+        "14          jo   1.525974\n",
+        "1           ar   1.591012\n",
+        "19          ko   2.157942\n",
+        "13          ja   2.420222\n",
+        "18         kas   2.568358\n",
+        "25        mums   2.623253\n",
+        "48        \u013coti   3.294740\n",
+        "46         vai   3.381308\n",
+        "29         nav   3.509438\n",
+        "27        m\u016bsu   3.567775\n",
+        "49          \u0161o   4.286466\n",
+        "9           es   4.310928\n",
+        "2          ar\u012b   4.454182\n",
+        "23         lai   4.963951\n",
+        "22          k\u0101   5.043317\n",
+        "39         tas   5.045899\n",
+        "43          t\u0101   5.231538\n",
+        "21       kungs   6.238261\n",
+        "31          no   6.526362\n",
+        "45          uz   7.663174\n",
+        "8      eiropas   9.190244\n",
+        "26         m\u0113s   9.544766\n",
+        "15          ka  10.245294\n",
+        "32         par  14.371290\n",
+        "44          un  17.439465"
+       ]
+      }
+     ],
+     "prompt_number": 87
+    },
+    {
+     "cell_type": "markdown",
+     "metadata": {},
+     "source": [
+      "#Exercise\n",
+      "\n",
+      "##Create a classifier for *all* 21 languages\n",
+      "i.e. Given a sentence, output its most probable language\n",
+      "\n",
+      "**hint**: Create 21 classifiers which classify *langauge x* vs. *all other languages* and choose langauge with highest probability"
+     ]
+    }
+   ],
+   "metadata": {}
+  }
+ ]
+}
